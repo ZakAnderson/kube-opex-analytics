@@ -7,20 +7,20 @@
 
 
 
-# Overview/Goal
-In a nutshell, `kube-opex-analytics` or literally *Kubernetes Opex Analytics* is a tool to help organizations track the resources being consumed by their Kubernetes clusters to prevent overpaying. To do so it generates, short-, mid- and long-term usage reports showing relevant insights on what amount of resources each project is spending over time. The final **goal being to ease cost allocation and capacity planning decisions** with factual analytics.
+# Overview
+In a nutshell, `kube-opex-analytics` or literally *Kubernetes Opex Analytics* is a tool to help organizations track the resources being consumed by their Kubernetes clusters to prevent overpaying. To this end, it generates short-, mid- and long-term usage reports showing relevant insights on what amount of resources each project is consuming over time. The final **goal being to ease cost allocation and capacity planning decisions** with factual analytics.
 
-`kube-opex-analytics` tracks usage for a single instance of Kubernetes. For a centralized multi-Kubernetes usage analytics, you may have to consider our [Krossboard project](https://krossboard.app/).
+> **Multi-cluster analytics:** `kube-opex-analytics` tracks the usage for a single instance of Kubernetes. For a centralized multi-Kubernetes usage analytics, you may have to consider our [Krossboard](https://krossboard.app/) project. Watch a [demo video here](https://youtu.be/lfkUIREDYDY). 
 
 ![](screenshots/kube-opex-analytics-overview.png)
 
 # Table of Contents
-- [Overview/Goal](#overviewgoal)
+- [Overview](#overview)
 - [Table of Contents](#table-of-contents)
 - [Concepts](#concepts)
   - [Fundamentals Principles](#fundamentals-principles)
   - [Cost Models](#cost-models)
-- [Screenshorts](#screenshorts)
+- [Screenshots](#screenshots)
   - [Last Week Hourly Resource Usage Trends](#last-week-hourly-resource-usage-trends)
   - [Two-weeks Daily CPU and Memory Usage](#two-weeks-daily-cpu-and-memory-usage)
   - [One-year Monthly CPU and Memory Usage](#one-year-monthly-cpu-and-memory-usage)
@@ -38,18 +38,18 @@ In a nutshell, `kube-opex-analytics` or literally *Kubernetes Opex Analytics* is
   - [Export Charts and Datasets (PNG, CSV, JSON)](#export-charts-and-datasets-png-csv-json)
   - [Prometheus Exporter](#prometheus-exporter)
   - [Grafana Dashboards](#grafana-dashboards)
-- [Multi-cluster integration (Google GKE, Amazon EKS, Microsoft AKS)](#multi-cluster-integration-google-gke-amazon-eks-microsoft-aks)
+- [Multi-cluster analytics](#multi-cluster-analytics)
 - [License & Copyrights](#license--copyrights)
 - [Support & Contributions](#support--contributions)
 
 # Concepts
-`kube-opex-analytics` periodically collects CPU and memory usage metrics from Kubernetes's APIs, processes and consolidates them over various time-aggregation perspectives (hourly, daily, monthly), to produce resource **usage reports covering up to a year**. The reports focus on namespace level, while a special care is taken to also account and highlight **shares of non-allocatable capacities**.
+`kube-opex-analytics` periodically collects CPU and memory usage metrics from Kubernetes's API, processes and consolidates them over various time-aggregation perspectives (hourly, daily, monthly), to produce resource **usage reports covering up to a year**. The reports focus on namespace level, while a special care is taken to also account and highlight **shares of non-allocatable capacities**.
 
 ## Fundamentals Principles
 `kube-opex-analytics` is designed atop the following core concepts and features:
 
 * **Namespace-focused:** Means that consolidated resource usage metrics consider individual namespaces as fundamental units for resource sharing. A special care is taken to also account and highlight `non-allocatable` resources .
-* **Hourly Usage & Trends:** Like on public clouds, resource consumption for each namespace is consolidated on a hourly-basic. This actually corresponds to the ratio (%) of resource used per namespace during each hour. It's the foundation for cost calculation and also allows to get over time trends about resources being consuming per namespace and also at the Kubernetes cluster scale.
+* **Hourly Usage & Trends:** Like on public clouds, resource consumption for each namespace is consolidated on a hourly-basic. This actually corresponds to the ratio (%) of resource used per namespace during each hour. It's the foundation for cost allocation and also allows to get over time trends about resources being consuming per namespace and also at the Kubernetes cluster scale.
 * **Daily and Monthly Usage Costs:** Provides for each period (daily/monthly), namespace, and resource type (CPU/memory), consolidated cost computed given one of the following ways: (i) accumulated hourly usage over the period; (ii) actual costs computed based on resource usage and a given hourly billing rate; (iii) normalized ratio of usage per namespace compared against the global cluster usage.
 * **Occupation of Nodes by Namespaced Pods:** Highlights for each node the share of resources used by active pods labelled by their namespace.
 * **Efficient Visualization:** For metrics generated, `kube-opex-analytics` provides dashboards with relevant charts covering as well the last couple of hours than the last 12 months (i.e. year). For this there are **built-in charts**, a **Prometheus Exporter** along with **Grafana Dashboard** that all work out of the box.
@@ -64,8 +64,8 @@ Cost allocation models can be set through the startup configuration variable `KO
 
 Read the [Configuration](#configuration-variables) section for more details.
 
-# Screenshorts
-Before diving to concepts and technical details in the next sections, the below screenshots illustrate reports leveraged via the `kube-opex-analytics`'s built-in charts or via Grafana backed by the `kube-opex-analytics`'s built-in Prometheus exporter.
+# Screenshots
+The below screenshots illustrate some reports leveraged via the `kube-opex-analytics`'s built-in charts or via Grafana backed by the `kube-opex-analytics`'s Prometheus exporter.
 
 ## Last Week Hourly Resource Usage Trends
 
@@ -91,28 +91,19 @@ This is a screenshot of our [official one](https://grafana.com/dashboards/10282)
 ## Kubernetes API Access
 `kube-opex-analytics` needs read-only access to the following Kubernetes APIs.
 
-* /apis/metrics.k8s.io/v1beta1
 * /api/v1
+* /apis/metrics.k8s.io/v1beta1 (provided by [Kubernetes Metrics Server](https://github.com/kubernetes-sigs/metrics-server), which shall be installed on the cluster if it's not yet the case).
 
-You need to provide the base URL of the Kubernetes API when starting the program (see example below).
+You need to provide the base URL of the Kubernetes API when starting the program.
+ * For a typically deployment inside the Kubernetes cluster, you have to provide the local cluster API endpoint at (i.e. `https://kubernetes.default`).
+ * Otherwise, if you're planning an installation outside the Kubernetes cluster you can provide either, the URL to the Kubernetes API (e.g. https://1.2.3.4:6443), or a proxied API (the command `kubectl proxy` shall open a proxied access to the Kubernetes API with the following endpoint by default `http://127.0.0.1:8001`).
 
-Typically if you're planning an installation inside a Kubernetes cluster, you can connect to the local cluster API endpoint at: `https://kubernetes.default`.
-
-Likewise, if you're planning an installation outside a Kubernetes cluster you would need either the URL to the Kubernetes API or a proxied access as follows. 
-
-```
-$ kubectl proxy
-```
-
-This will open a proxied access to Kubernetes API at `http://127.0.0.1:8001`.
-
-If you use a direct access to the Kubernetes API, you may have to set the required credentials through specific environment variables (see [Configuration Variables](#configuration-variables)).
+> When deployed outside the cluster without a proxy access, it'll be likely required to provide credentials to authenticate against the Kubernetes API. The credentials can be a Bearer token, a Basic auth token, or even X509 client certifcate credentials. See [Configuration Variables](#configuration-variables) for more details.
 
 
 ## Configuration Variables
-These configuration variables shall be set as environment variables before the startup of the service. 
+When needed, these configuration environment variables shall be set before starting `kube-opex-analytics`:
 
-`kube-opex-analytics` supports the following environment variables when it starts:
 * `KOA_DB_LOCATION` sets the path to use to store internal data. Typically when you consider to set a volume to store those data, you should also take care to set this path to belong to the mounting point.
 * `KOA_K8S_API_ENDPOINT` sets the endpoint to the Kubernetes API.
 * `KOA_K8S_CACERT` sets the path to CA file for a self-signed certificate.
@@ -124,7 +115,6 @@ These configuration variables shall be set as environment variables before the s
 * `KOA_COST_MODEL` (version >= `0.2.0`): sets the model of cost allocation to use. Possible values are: _CUMULATIVE_RATIO_ (default) indicates to compute cost as cumulative resource usage for each period of time (daily, monthly); _CHARGE_BACK_ calculates cost based on a given cluster hourly rate (see `KOA_BILLING_HOURLY_RATE`); _RATIO_ indicates to compute cost as a normalized percentage of resource usage during each period of time.
 * `KOA_BILLING_HOURLY_RATE` (required if cost model is _CHARGE_BACK_): defines a positive floating number corresponding to an estimated hourly rate for the Kubernetes cluster. For example if your cluster cost is $5,000 dollars a month (i.e. `~30*24` hours), its estimated hourly cost would be `6.95 = 5000/(30*24)`.
 * `KOA_BILLING_CURRENCY_SYMBOL` (optional, default is '`$`'): sets a currency string to use to annotate costs on reports.
-
 
 
 ## Deployment on Docker
@@ -241,25 +231,25 @@ The dashboard currently provides the following reports:
 
 ![](./screenshots/kube-opex-analytics-grafana.png)
 
-# Multi-cluster integration (Google GKE, Amazon EKS, Microsoft AKS)
-Thanks to a partnership with the [2Alchemists SAS](https://krossboard.app/aboutus/) company, this feature is now implemented by the [Krossboard](https://krossboard.app/) application.
+# Multi-cluster analytics
+Thanks to a partnership with the [2Alchemists SAS](https://krossboard.app/aboutus/) company, this feature is now implemented by [Krossboard](https://krossboard.app/).
 
-In a nutshell, Krossboard is a software stack that implements a centralized and converged cross-cluster usage analytics approach atop of managed Kubernetes platforms. It currently supports Amazon EKS, Microsoft AKS and Google GKE. [Learn more details](https://krossboard.app/docs/analytics-reports-and-data-export/) at the Krossboard's web site.
+It's actively tested against Amazon EKS, Microsoft AKS, Google GKE Red Hat OpenShift, Rancher RKE, and various vanilla deployments. [Learn more...]
 
-  ![](./screenshots/krossboard-current-usage-overview.png)
+  ![](https://github.com/2-alchemists/krossboard/blob/master/assets/krossboard-demo-v1.1.0.gif)
 
 # License & Copyrights
-This tool (code and documentation) is licensed under the terms of Apache License 2.0. Read the `LICENSE` file for more details on the license terms.
+`kube-opex-analytics` (code and documentation) is licensed under the terms of Apache License 2.0. Read the `LICENSE` file for more details on the license terms.
 
-The tool includes and is bound to third-party libraries provided with their owns licenses and copyrights. Read the `NOTICE` file for additional information.
+It includes and is bound to third-party libraries provided with their owns licenses and copyrights. Read the `NOTICE` file for additional information.
 
 # Support & Contributions
-We encourage feedback and always make our best to handle any troubles you may encounter when using this tool.
+We encourage feedback and always make our best to handle any troubles you may encounter when using it.
 
 Here is the link to submit issues: https://github.com/rchakode/kube-opex-analytics/issues.
 
-New ideas are welcomed, please open an issue to submit your idea if you have any one.
+New ideas are welcomed, if you have any idea to improve it please open an issue to submit it.
 
 Contributions are accepted subject that the code and documentation be released under the terms of Apache 2.0 License.
 
-To contribute bug patches or new features, you can use the Github Pull Request model.
+To contribute bug patches or new features, please submit a Pull Request.
